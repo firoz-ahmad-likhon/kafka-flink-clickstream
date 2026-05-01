@@ -23,9 +23,8 @@ This project uses a simple real-time streaming pattern:
 ## Development
 1. Clone the repo.
 2. Copy the `.env-example` to `.env` and update the values as per your environment.
-3. Set `ENV=dev` in `.env`
-4. Set `IMAGE_TAG` in `.env` (for example, `IMAGE_TAG=1.0.0`)
-5. Start the Docker containers:
+3. Set `IMAGE_TAG` in `.env` (for example, `IMAGE_TAG=1.0.0`)
+4. Start the Docker containers:
    ```
    docker compose up -d --build
    ```

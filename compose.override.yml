@@ -1,0 +1,23 @@
+services:
+  kafka-producer:
+    image: likh/kafka-producer:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: kafka_producer/Dockerfile
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:29092}
+      KAFKA_CLIENT_ID: ${KAFKA_CLIENT_ID:-clickstream-producer}
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - app-network
+    volumes:
+      - ./kafka_producer:/app/kafka_producer
