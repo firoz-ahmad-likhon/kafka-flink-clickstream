@@ -1,5 +1,21 @@
+x-app-networked: &app-networked
+  networks:
+    - app-network
+
+x-flink-image: &flink-image
+  image: likh/kafka-flink-clickstream:${IMAGE_TAG:-latest}
+  build:
+    context: .
+    dockerfile: Dockerfile
+
+x-healthcheck-defaults: &healthcheck-defaults
+  interval: 10s
+  timeout: 5s
+  retries: 10
+
 services:
   kafka:
+    <<: *app-networked
     image: confluentinc/cp-kafka:7.5.3
     ports:
       - "9092:9092"
@@ -18,22 +34,19 @@ services:
     volumes:
       - kafka-data:/var/lib/kafka/data
     healthcheck:
+      <<: *healthcheck-defaults
       test: ["CMD", "cub", "kafka-ready", "-b", "kafka:29092", "1", "20"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
       start_period: 10s
     restart: unless-stopped
-    networks:
-      - app-network
 
   kafka-init:
+    <<: *app-networked
     image: confluentinc/cp-kafka:7.5.3
     depends_on:
       kafka:
         condition: service_healthy
     environment:
-      KAFKA_INIT_TOPICS: ${KAFKA_INIT_TOPICS:-clickstream.events:1}
+      KAFKA_INIT_TOPICS: ${KAFKA_INIT_TOPICS:-clickstream.events:1,clickstream.metrics:1}
     command: >
       bash -c "
         set -e;
@@ -46,10 +59,9 @@ services:
         done
       "
     restart: "no"
-    networks:
-      - app-network
 
   kafdrop:
+    <<: *app-networked
     image: obsidiandynamics/kafdrop:4.2.0
     depends_on:
       kafka:
@@ -59,8 +71,57 @@ services:
     environment:
       KAFKA_BROKERCONNECT: kafka:29092
     restart: unless-stopped
-    networks:
-      - app-network
+
+  flink-jobmanager:
+    <<: [*app-networked, *flink-image]
+    command: jobmanager
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+    ports:
+      - "8081:8081"
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+    healthcheck:
+      <<: *healthcheck-defaults
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8081/overview >/dev/null || exit 1"]
+      start_period: 20s
+    restart: unless-stopped
+
+  flink-taskmanager:
+    <<: [*app-networked, *flink-image]
+    command: taskmanager
+    depends_on:
+      flink-jobmanager:
+        condition: service_healthy
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.numberOfTaskSlots: ${FLINK_TASK_SLOTS:-2}
+    healthcheck:
+      <<: *healthcheck-defaults
+      test: ["CMD-SHELL", "curl -fsS http://flink-jobmanager:8081/taskmanagers >/dev/null || exit 1"]
+      start_period: 20s
+    restart: unless-stopped
+
+  clickstream-job:
+    <<: [*app-networked, *flink-image]
+    depends_on:
+      flink-jobmanager:
+        condition: service_healthy
+      flink-taskmanager:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:29092}
+      KAFKA_GROUP_ID: ${KAFKA_GROUP_ID:-clickstream-flink}
+      CLICKSTREAM_TOPIC: ${CLICKSTREAM_TOPIC:-clickstream.events}
+      METRICS_TOPIC: ${METRICS_TOPIC:-clickstream.metrics}
+    command: >
+      bash -c "flink run -d -m flink-jobmanager:8081 -py /opt/flink/usrlib/clickstream/clickstream_metrics.py"
+    restart: "no"
 
 volumes:
   kafka-data:

@@ -13,9 +13,9 @@ This becomes a real business problem when teams need live metrics such as active
 
 This project uses a simple real-time streaming pattern:
 
-- Kafka streams clickstream events in real time.
-- Flink groups related events and maintains journey context with stateful processing.
-- Flink enriches events, calculates metrics, and emits results.
+- Kafka streams clickstream events through the `clickstream.events` topic.
+- Flink groups related events by user and maintains journey context with stateful processing.
+- Flink enriches events, calculates session metrics, and emits results to `clickstream.metrics`.
 
 ## Prerequisites
 - Docker installed.
@@ -28,6 +28,9 @@ This project uses a simple real-time streaming pattern:
    ```
    docker compose up -d --build
    ```
+5. Open the local service UIs:
+   - Kafdrop: http://localhost:9000
+   - Flink Web UI: http://localhost:8081
 
 ## Testing
 

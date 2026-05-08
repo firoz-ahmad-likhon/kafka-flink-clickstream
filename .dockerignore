@@ -1,6 +1,10 @@
 *
+!Dockerfile
+!requirements.txt
 !kafka_producer/
 !kafka_producer/**
+!flink_job/
+!flink_job/**
 
 .git/
 .venv/
