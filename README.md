@@ -15,7 +15,7 @@ This project uses a simple real-time streaming pattern:
 
 - Kafka streams clickstream events through the `clickstream.events` topic.
 - Flink groups related events by user and maintains journey context with stateful processing.
-- Flink enriches events, calculates session metrics, and emits results to `clickstream.events.enriched`.
+- Flink enriches events with session context and emits results to `clickstream.events.enriched`.
 
 ## Prerequisites
 - Docker installed.

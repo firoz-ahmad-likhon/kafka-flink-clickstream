@@ -29,9 +29,9 @@ def env(name: str, default: str) -> str:
 
 def parse_args() -> argparse.Namespace:
     """Read Flink job parameters supplied at submission time."""
-    parser = argparse.ArgumentParser(description="Run the clickstream metrics Flink job.")
+    parser = argparse.ArgumentParser(description="Run the clickstream enrichment Flink job.")
     parser.add_argument("--input-topic", default="clickstream.events", help="Kafka topic containing raw clickstream events.")
-    parser.add_argument("--output-topic", default="clickstream.events.enriched", help="Kafka topic for enriched clickstream metrics.")
+    parser.add_argument("--output-topic", default="clickstream.events.enriched", help="Kafka topic for enriched clickstream events.")
     return parser.parse_args()
 
 
@@ -45,11 +45,11 @@ def parse_timestamp(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
-class ClickstreamMetricsProcessor(KeyedProcessFunction):
-    """Track per-user journey state and emit metrics for each event."""
+class ClickstreamEnrichmentProcessor(KeyedProcessFunction):
+    """Track per-user journey state and emit enriched clickstream events."""
 
     def open(self, runtime_context: RuntimeContext) -> None:
-        """Initialize keyed state for clickstream journey metrics."""
+        """Initialize keyed state for clickstream journey context."""
         self.state = runtime_context.get_state(ValueStateDescriptor("clickstream_state", Types.STRING()))
 
     def process_element(self, value: str, ctx: KeyedProcessFunction.Context) -> Iterator[str]:
@@ -77,7 +77,7 @@ class ClickstreamMetricsProcessor(KeyedProcessFunction):
         session_duration_seconds = int(
             (parse_timestamp(event_time) - parse_timestamp(str(current_state["session_started_at"]))).total_seconds(),
         )
-        metric = {
+        enriched_event = {
             "event_id": event["event_id"],
             "user_pseudo_id": event["user_pseudo_id"],
             "event_type": event_type,
@@ -92,7 +92,7 @@ class ClickstreamMetricsProcessor(KeyedProcessFunction):
         }
 
         self.state.update(json.dumps(current_state, separators=(",", ":"), sort_keys=True))
-        yield json.dumps(metric, separators=(",", ":"), sort_keys=True)
+        yield json.dumps(enriched_event, separators=(",", ":"), sort_keys=True)
 
     def _load_state(self) -> dict[str, Any]:
         state = self.state.value()
@@ -115,7 +115,7 @@ def kafka_source(topic: str, bootstrap_servers: str, group_id: str) -> KafkaSour
 
 
 def kafka_sink(topic: str, bootstrap_servers: str) -> KafkaSink:
-    """Create a Kafka sink for clickstream metrics."""
+    """Create a Kafka sink for enriched clickstream events."""
     serializer = KafkaRecordSerializationSchema.builder().set_topic(topic).set_value_serialization_schema(SimpleStringSchema()).build()
     return (
         KafkaSink.builder()
@@ -127,12 +127,12 @@ def kafka_sink(topic: str, bootstrap_servers: str) -> KafkaSink:
 
 
 def main() -> None:
-    """Run the clickstream metrics Flink job."""
+    """Run the clickstream enrichment Flink job."""
     args = parse_args()
     stream_env = StreamExecutionEnvironment.get_execution_environment()
 
     kafka_bootstrap_servers = env("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
-    kafka_group_id = env("KAFKA_GROUP_ID", "clickstream-flink")
+    kafka_group_id = env("KAFKA_GROUP_ID", "clickstream")
 
     clickstream_events = stream_env.from_source(
         kafka_source(args.input_topic, kafka_bootstrap_servers, kafka_group_id),
@@ -140,10 +140,10 @@ def main() -> None:
         "clickstream-events",
     )
 
-    metrics = clickstream_events.key_by(user_pseudo_id).process(ClickstreamMetricsProcessor(), output_type=Types.STRING())
-    metrics.sink_to(kafka_sink(args.output_topic, kafka_bootstrap_servers)).name("clickstream-metrics")
+    enriched_events = clickstream_events.key_by(user_pseudo_id).process(ClickstreamEnrichmentProcessor(), output_type=Types.STRING())
+    enriched_events.sink_to(kafka_sink(args.output_topic, kafka_bootstrap_servers)).name("clickstream-events-enriched")
 
-    stream_env.execute("clickstream-metrics")
+    stream_env.execute("clickstream-events-enrichment")
 
 
 if __name__ == "__main__":

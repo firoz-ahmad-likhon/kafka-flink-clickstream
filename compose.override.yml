@@ -1,4 +1,16 @@
 services:
+  flink-jobmanager:
+    volumes:
+      - ./flink_job:/opt/flink/usrlib/clickstream:ro
+
+  flink-taskmanager:
+    volumes:
+      - ./flink_job:/opt/flink/usrlib/clickstream:ro
+
+  clickstream-job:
+    volumes:
+      - ./flink_job:/opt/flink/usrlib/clickstream:ro
+
   kafka-producer:
     image: likh/kafka-producer:${IMAGE_TAG:-latest}
     build:
