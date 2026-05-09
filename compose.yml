@@ -46,7 +46,7 @@ services:
       kafka:
         condition: service_healthy
     environment:
-      KAFKA_INIT_TOPICS: ${KAFKA_INIT_TOPICS:-clickstream.events:1,clickstream.metrics:1}
+      KAFKA_INIT_TOPICS: ${KAFKA_INIT_TOPICS:-clickstream.events:1,clickstream.events.enriched:1}
     command: >
       bash -c "
         set -e;
@@ -116,11 +116,9 @@ services:
         condition: service_completed_successfully
     environment:
       KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:29092}
-      KAFKA_GROUP_ID: ${KAFKA_GROUP_ID:-clickstream-flink}
-      CLICKSTREAM_TOPIC: ${CLICKSTREAM_TOPIC:-clickstream.events}
-      METRICS_TOPIC: ${METRICS_TOPIC:-clickstream.metrics}
+      KAFKA_GROUP_ID: ${KAFKA_GROUP_ID:-clickstream}
     command: >
-      bash -c "flink run -d -m flink-jobmanager:8081 -py /opt/flink/usrlib/clickstream/clickstream_metrics.py"
+      bash -c "flink run -d -m flink-jobmanager:8081 -py /opt/flink/usrlib/clickstream/clickstream_metrics.py --input-topic clickstream.events --output-topic clickstream.events.enriched"
     restart: "no"
 
 volumes:

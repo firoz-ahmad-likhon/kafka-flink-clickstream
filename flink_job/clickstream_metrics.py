@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import os
 from collections.abc import Iterator
@@ -24,6 +25,14 @@ from pyflink.datastream.state import ValueStateDescriptor
 def env(name: str, default: str) -> str:
     """Read an environment variable with a default."""
     return os.getenv(name, default)
+
+
+def parse_args() -> argparse.Namespace:
+    """Read Flink job parameters supplied at submission time."""
+    parser = argparse.ArgumentParser(description="Run the clickstream metrics Flink job.")
+    parser.add_argument("--input-topic", default="clickstream.events", help="Kafka topic containing raw clickstream events.")
+    parser.add_argument("--output-topic", default="clickstream.events.enriched", help="Kafka topic for enriched clickstream metrics.")
+    return parser.parse_args()
 
 
 def user_pseudo_id(raw_event: str) -> str:
@@ -119,21 +128,20 @@ def kafka_sink(topic: str, bootstrap_servers: str) -> KafkaSink:
 
 def main() -> None:
     """Run the clickstream metrics Flink job."""
+    args = parse_args()
     stream_env = StreamExecutionEnvironment.get_execution_environment()
 
     kafka_bootstrap_servers = env("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
     kafka_group_id = env("KAFKA_GROUP_ID", "clickstream-flink")
-    clickstream_topic = env("CLICKSTREAM_TOPIC", "clickstream.events")
-    metrics_topic = env("METRICS_TOPIC", "clickstream.metrics")
 
     clickstream_events = stream_env.from_source(
-        kafka_source(clickstream_topic, kafka_bootstrap_servers, kafka_group_id),
+        kafka_source(args.input_topic, kafka_bootstrap_servers, kafka_group_id),
         WatermarkStrategy.no_watermarks(),
         "clickstream-events",
     )
 
     metrics = clickstream_events.key_by(user_pseudo_id).process(ClickstreamMetricsProcessor(), output_type=Types.STRING())
-    metrics.sink_to(kafka_sink(metrics_topic, kafka_bootstrap_servers)).name("clickstream-metrics")
+    metrics.sink_to(kafka_sink(args.output_topic, kafka_bootstrap_servers)).name("clickstream-metrics")
 
     stream_env.execute("clickstream-metrics")
 
