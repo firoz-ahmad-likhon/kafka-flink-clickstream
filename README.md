@@ -28,9 +28,6 @@ This project uses a simple real-time streaming pattern:
    ```
    docker compose up -d --build
    ```
-5. Open the local service UIs:
-   - Kafdrop: http://localhost:9000
-   - Flink Web UI: http://localhost:8081
 
 ## Testing
 

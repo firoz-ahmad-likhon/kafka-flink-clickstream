@@ -4,9 +4,6 @@ x-app-networked: &app-networked
 
 x-flink-image: &flink-image
   image: likh/kafka-flink-clickstream:${IMAGE_TAG:-latest}
-  build:
-    context: .
-    dockerfile: Dockerfile
 
 x-healthcheck-defaults: &healthcheck-defaults
   interval: 10s
