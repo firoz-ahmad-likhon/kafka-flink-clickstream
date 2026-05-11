@@ -1,4 +1,24 @@
+x-flink-build: &flink-build
+  build:
+    context: .
+    dockerfile: Dockerfile
+
 services:
+  flink-jobmanager:
+    <<: *flink-build
+    volumes:
+      - ./flink_job:/opt/flink/usrlib/clickstream:ro
+
+  flink-taskmanager:
+    <<: *flink-build
+    volumes:
+      - ./flink_job:/opt/flink/usrlib/clickstream:ro
+
+  clickstream-job:
+    <<: *flink-build
+    volumes:
+      - ./flink_job:/opt/flink/usrlib/clickstream:ro
+
   kafka-producer:
     image: likh/kafka-producer:${IMAGE_TAG:-latest}
     build:
