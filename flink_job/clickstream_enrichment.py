@@ -117,13 +117,7 @@ def kafka_source(topic: str, bootstrap_servers: str, group_id: str) -> KafkaSour
 def kafka_sink(topic: str, bootstrap_servers: str) -> KafkaSink:
     """Create a Kafka sink for enriched clickstream events."""
     serializer = KafkaRecordSerializationSchema.builder().set_topic(topic).set_value_serialization_schema(SimpleStringSchema()).build()
-    return (
-        KafkaSink.builder()
-        .set_bootstrap_servers(bootstrap_servers)
-        .set_record_serializer(serializer)
-        .set_delivery_guarantee(DeliveryGuarantee.AT_LEAST_ONCE)
-        .build()
-    )
+    return KafkaSink.builder().set_bootstrap_servers(bootstrap_servers).set_record_serializer(serializer).set_delivery_guarantee(DeliveryGuarantee.AT_LEAST_ONCE).build()
 
 
 def main() -> None:
