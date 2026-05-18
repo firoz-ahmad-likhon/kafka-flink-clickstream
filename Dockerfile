@@ -14,6 +14,6 @@ RUN curl -fL \
     -o /opt/flink/lib/flink-sql-connector-kafka-3.2.0-1.19.jar \
     https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka/3.2.0-1.19/flink-sql-connector-kafka-3.2.0-1.19.jar
 
-COPY flink_job /opt/flink/usrlib/clickstream
+COPY flink_job /opt/flink/usrlib/flink_job
 
 USER flink

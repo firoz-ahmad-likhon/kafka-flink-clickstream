@@ -115,7 +115,7 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:29092}
       KAFKA_GROUP_ID: ${KAFKA_GROUP_ID:-clickstream}
     command: >
-      bash -c "flink run -d -m flink-jobmanager:8081 -py /opt/flink/usrlib/clickstream/clickstream_enrichment.py --input-topic clickstream.events --output-topic clickstream.events.enriched"
+      bash -c "flink run -d -m flink-jobmanager:8081 -py /opt/flink/usrlib/flink_job/clickstream_enrichment.py --input-topic clickstream.events --output-topic clickstream.events.enriched --bootstrap-servers $${KAFKA_BOOTSTRAP_SERVERS} --group-id $${KAFKA_GROUP_ID} --starting-offsets earliest --job-name clickstream-events-enrichment --parallelism $${FLINK_JOB_PARALLELISM:-1} --checkpoint-interval-ms $${FLINK_CHECKPOINT_INTERVAL_MS:-10000}"
     restart: "no"
 
 volumes:
